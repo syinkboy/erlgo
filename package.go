@@ -8,7 +8,7 @@ var Package = struct {
 	Files       []string
 	Dependencies []string
 }{
-	Name:        "NickIsADev/erlua-go",
+	Name:        "Syink's ERLGO",
 	Version:     "2.0.0",
 	Description: "A library providing dynamic ratelimiting, custom functions, and easy access to the ER:LC API.",
 	License:     "MIT",
