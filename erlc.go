@@ -13,34 +13,33 @@ import (
 type LogLevel int
 
 const (
-	info LogLevel = iota
+	Info LogLevel = iota
 	Warning
 	ErrorLevel
 )
 
 type ERLC struct {
-	GlobalKey string
-	ServerKey string
-	LogLevel LogLevel
-
-	mu sync.Mutex
-	request map[string][]*Request
+	GlobalKey  string
+	ServerKey  string
+	LogLevel   LogLevel
+	mu         sync.Mutex
+	requests   map[string][]*Request
 	rateLimits map[string][]*RateLimit
 }
 
 type Request struct {
-	Method string 
-	EndPoint string
-	Body any
-	Process func([]byte) any
+	Method   string
+	Endpoint string
+	Body     any
+	Process  func([]byte) any
 	Response chan any
 }
 
 type RateLimit struct {
-	Updated time.Time
-	Retry time.Duration
+	Updated   time.Time
+	Retry     time.Duration
 	Remaining int
-	Reset time.Time
+	Reset     time.Time
 }
 
 func (e *ERLC) log(msg string, level LogLevel) {
@@ -49,24 +48,24 @@ func (e *ERLC) log(msg string, level LogLevel) {
 	}
 
 	prefix := "[ERLC]"
-	swtich level {
-	case info:
-		fmt.println(prefix, msg)
+	switch level {
+	case Info:
+		fmt.Println(prefix, msg)
 	case Warning:
-		fmt.printLn("[WARN]", prefix, msg)
+		fmt.Println("[WARN]", prefix, msg)
 	case ErrorLevel:
-		fmt.printLn("[ERROR]", prefix, msg)
+		fmt.Println("[ERROR]", prefix, msg)
 	}
 }
 
 func (e *ERLC) SetGlobalKey(key string) {
 	e.GlobalKey = key
-	e.Log("Global key [HIDDEN]", info)
+	e.log("Global key [HIDDEN]", Info)
 }
 
 func (e *ERLC) SetServerKey(key string) {
 	e.ServerKey = key
-	e.log("Server ley [HIDDEN]", info)
+	e.log("Server key [HIDDEN]", Info)
 }
 
 func (e *ERLC) request(method, endpoint string, body any) ([]byte, error) {
@@ -74,7 +73,7 @@ func (e *ERLC) request(method, endpoint string, body any) ([]byte, error) {
 
 	var bodyReader io.Reader
 	if body != nil {
-		jsonData, err := json.Marshal(body)
+		jsonData, _ := json.Marshal(body)
 		bodyReader = bytes.NewBuffer(jsonData)
 	}
 
@@ -83,7 +82,7 @@ func (e *ERLC) request(method, endpoint string, body any) ([]byte, error) {
 		return nil, err
 	}
 
-	req.Header.Set("Content-Tyepe", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 	if e.ServerKey != "" {
 		req.Header.Set("Server-Key", e.ServerKey)
 	}
@@ -93,23 +92,24 @@ func (e *ERLC) request(method, endpoint string, body any) ([]byte, error) {
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
-	if err != nil  {
+	if err != nil {
 		return nil, err
 	}
-	defer reso.Body.Close()
+	defer resp.Body.Close()
 
-	respBytes, err := io:readAll(resp.Body)
+	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("HTTP %d %s", resp.Statucode, string(respBytes))
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBytes))
 	}
 
 	return respBytes, nil
 }
-func (e *ERLC) server() (map[string]any, error) {
+
+func (e *ERLC) Server() (map[string]any, error) {
 	data, err := e.request("GET", "server", nil)
 	if err != nil {
 		return nil, err
