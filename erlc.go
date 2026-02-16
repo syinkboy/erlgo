@@ -45,6 +45,15 @@ type RateLimit struct {
 	Reset     time.Time
 }
 
+
+func New() *ERLC {
+	return &ERLC{
+		requests:   make(map[string][]*Request),
+		rateLimits: make(map[string]*RateLimit),
+		LogLevel:   Info,
+	}
+}
+
 func (e *ERLC) log(msg string, level LogLevel) {
 	if level < e.LogLevel {
 		return
@@ -65,6 +74,7 @@ func (e *ERLC) SetGlobalKey(key string) {
 	e.GlobalKey = key
 	e.log("Global key [HIDDEN]", Info)
 
+	
 	if e.requests == nil {
 		e.requests = make(map[string][]*Request)
 	}
@@ -78,6 +88,16 @@ func (e *ERLC) SetGlobalKey(key string) {
 func (e *ERLC) SetServerKey(key string) {
 	e.ServerKey = key
 	e.log("Server key [HIDDEN]", Info)
+
+	
+	if e.requests == nil {
+		e.requests = make(map[string][]*Request)
+	}
+	if e.rateLimits == nil {
+		e.rateLimits = make(map[string]*RateLimit)
+	}
+
+	go e.processQueue()
 }
 
 func (e *ERLC) request(method, endpoint string, body any) ([]byte, error) {
@@ -101,7 +121,6 @@ func (e *ERLC) request(method, endpoint string, body any) ([]byte, error) {
 func (e *ERLC) processQueue() {
 	for {
 		e.mu.Lock()
-
 		for endpoint, queue := range e.requests {
 			if len(queue) == 0 {
 				continue
@@ -114,7 +133,6 @@ func (e *ERLC) processQueue() {
 
 			req := queue[0]
 			e.requests[endpoint] = queue[1:]
-
 			e.mu.Unlock()
 
 			data, err := e.executeRequest(req)
@@ -126,7 +144,6 @@ func (e *ERLC) processQueue() {
 
 			e.mu.Lock()
 		}
-
 		e.mu.Unlock()
 		time.Sleep(25 * time.Millisecond)
 	}
